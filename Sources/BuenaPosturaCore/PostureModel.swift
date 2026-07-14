@@ -12,10 +12,14 @@ public struct PostureSample: Codable, Equatable {
     }
 
     public func distance(to other: PostureSample) -> Double {
-        let pitchDelta = pitch - other.pitch
-        let rollDelta = roll - other.roll
-        let yawDelta = yaw - other.yaw
+        let pitchDelta = angularDelta(pitch, other.pitch)
+        let rollDelta = angularDelta(roll, other.roll)
+        let yawDelta = angularDelta(yaw, other.yaw)
         return sqrt((pitchDelta * pitchDelta) + (rollDelta * rollDelta) + (yawDelta * yawDelta))
+    }
+
+    private func angularDelta(_ lhs: Double, _ rhs: Double) -> Double {
+        atan2(sin(lhs - rhs), cos(lhs - rhs))
     }
 }
 
@@ -45,7 +49,7 @@ public enum PostureState: String {
     case waitingForHeadphones = "Esperando AirPods"
     case monitoring = "Monitoreando"
     case good = "Buena postura"
-    case drifting = "Te estas inclinando"
+    case drifting = "Te estás inclinando"
     case slouching = "Postura baja"
     case paused = "Pausado"
     case unsupported = "No compatible"
@@ -116,10 +120,14 @@ public struct PostureDetector {
     }
 
     private func weightedDistance(_ lhs: PostureSample, _ rhs: PostureSample) -> Double {
-        let pitchDelta = (lhs.pitch - rhs.pitch) * 1.25
-        let rollDelta = (lhs.roll - rhs.roll) * 0.9
-        let yawDelta = (lhs.yaw - rhs.yaw) * 0.35
+        let pitchDelta = angularDelta(lhs.pitch, rhs.pitch) * 1.25
+        let rollDelta = angularDelta(lhs.roll, rhs.roll) * 0.9
+        let yawDelta = angularDelta(lhs.yaw, rhs.yaw) * 0.35
         return sqrt((pitchDelta * pitchDelta) + (rollDelta * rollDelta) + (yawDelta * yawDelta))
+    }
+
+    private func angularDelta(_ lhs: Double, _ rhs: Double) -> Double {
+        atan2(sin(lhs - rhs), cos(lhs - rhs))
     }
 }
 

@@ -10,6 +10,7 @@ final class PostureMonitor: NSObject, ObservableObject {
     @Published private(set) var state: PostureState = .waitingForHeadphones
     @Published private(set) var isRunning = false
     @Published private(set) var isConnected = false
+    @Published private(set) var hasCurrentSample = false
     @Published private(set) var motionPermission = CMHeadphoneMotionManager.authorizationStatus()
     @Published var showsAdvancedSettings = false
     @Published var settings: DetectionSettings {
@@ -56,18 +57,26 @@ final class PostureMonitor: NSObject, ObservableObject {
     }
 
     func start() {
+        beginMonitoring(clearsSnooze: true)
+    }
+
+    private func beginMonitoring(clearsSnooze: Bool) {
+        if clearsSnooze {
+            snoozedUntil = nil
+        }
         motionPermission = CMHeadphoneMotionManager.authorizationStatus()
         if motionPermission == .denied || motionPermission == .restricted {
+            isRunning = false
             state = .unauthorized
             return
         }
 
+        isRunning = true
         guard motionManager.isDeviceMotionAvailable else {
-            state = .unsupported
+            state = .waitingForHeadphones
             return
         }
 
-        isRunning = true
         state = .monitoring
         smoother.reset()
         motionManager.startDeviceMotionUpdates(to: queue) { [weak self] motion, error in
@@ -98,25 +107,30 @@ final class PostureMonitor: NSObject, ObservableObject {
     }
 
     func captureGoodPosture() {
+        guard hasCurrentSample else { return }
         detector.goodPosture = currentSample
         store.saveGoodPosture(currentSample)
     }
 
     func captureBadPosture() {
+        guard hasCurrentSample else { return }
         detector.badPosture = currentSample
         store.saveBadPosture(currentSample)
     }
 
     func snooze(minutes: Double = 10) {
         snoozedUntil = Date().addingTimeInterval(minutes * 60)
+        badPostureStartedAt = nil
         state = .paused
     }
 
     private func handle(_ sample: PostureSample) {
         currentSample = sample
+        hasCurrentSample = true
 
         if let snoozedUntil, snoozedUntil > Date() {
             score = 0
+            badPostureStartedAt = nil
             state = .paused
             return
         }
@@ -127,11 +141,10 @@ final class PostureMonitor: NSObject, ObservableObject {
             score: rawReading.score,
             factor: settings.smoothing
         )
-        let reading = detector.reading(for: smoothed.0)
         score = smoothed.1
-        state = state(for: score, fallback: reading.state)
+        state = state(for: score, fallback: rawReading.state)
 
-        guard reading.state == .slouching else {
+        guard state == .slouching else {
             badPostureStartedAt = nil
             return
         }
@@ -160,7 +173,7 @@ final class PostureMonitor: NSObject, ObservableObject {
         guard notificationsAvailable else { return }
         let content = UNMutableNotificationContent()
         content.title = "BuenaPostura"
-        content.body = "Tu cabeza se inclino durante un rato. Respira, subi el pecho y volve."
+        content.body = "Tu cabeza se inclinó durante un rato. Respira, sube el pecho y vuelve."
         content.sound = .default
 
         let request = UNNotificationRequest(
@@ -183,8 +196,8 @@ extension PostureMonitor: CMHeadphoneMotionManagerDelegate {
     nonisolated func headphoneMotionManagerDidConnect(_ manager: CMHeadphoneMotionManager) {
         Task { @MainActor in
             isConnected = true
-            if isRunning {
-                state = .monitoring
+            if isRunning && !motionManager.isDeviceMotionActive {
+                beginMonitoring(clearsSnooze: false)
             }
         }
     }

@@ -1,6 +1,7 @@
-.DS_Store
 .build/
-DerivedData/
-*.xcuserdata/
-*.xcuserstate
-*.swp
+*.dmg
+*.zip
+.DS_Store
+.design-reference-*.png
+design-qa.md
+qa-artifacts/

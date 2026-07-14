@@ -2,16 +2,19 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="$ROOT_DIR/.build/BuenaPostura.app"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/BuenaPostura.XXXXXX")"
+trap 'rm -rf "$WORK_DIR"' EXIT
+APP_DIR="$WORK_DIR/BuenaPostura.app"
+DMG_ROOT="$WORK_DIR/dmg-root"
+DMG_PATH="$ROOT_DIR/BuenaPostura.dmg"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 
 cd "$ROOT_DIR"
-swift build -c debug --product BuenaPostura
+swift build -c release --product BuenaPostura
 
-rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR"
-cp "$ROOT_DIR/.build/debug/BuenaPostura" "$MACOS_DIR/BuenaPostura"
+cp "$ROOT_DIR/.build/release/BuenaPostura" "$MACOS_DIR/BuenaPostura"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -47,5 +50,12 @@ PLIST
 printf 'APPL????' > "$CONTENTS_DIR/PkgInfo"
 xattr -cr "$APP_DIR"
 codesign --force --sign - "$APP_DIR" >/dev/null
+codesign --verify --deep --strict "$APP_DIR"
 
-echo "$APP_DIR"
+rm -rf "$DMG_PATH"
+mkdir -p "$DMG_ROOT"
+cp -R "$APP_DIR" "$DMG_ROOT/BuenaPostura.app"
+ln -s /Applications "$DMG_ROOT/Applications"
+hdiutil create -quiet -volname "BuenaPostura" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
+
+echo "$DMG_PATH"

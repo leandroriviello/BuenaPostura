@@ -1,5 +1,7 @@
 # BuenaPostura
 
+> Version 0.1.0 · macOS 14 or later · Apple Silicon
+
 BuenaPostura is an open source macOS menu bar posture reminder that uses AirPods headphone motion data locally through Core Motion.
 
 The public home is planned for `buenapostura.app`. This is a clean-room implementation: no camera, no cloud, no account, and no proprietary assets.
@@ -36,10 +38,10 @@ The app appears in the macOS menu bar. Wear compatible AirPods, open the popover
 
 ```sh
 script/build_app.sh
-open .build/BuenaPostura.app
+open BuenaPostura.dmg
 ```
 
-The app bundle includes the motion usage description required by macOS and enables local notifications.
+The script creates a single `BuenaPostura.dmg` file containing the release app and an Applications shortcut. The app bundle includes the motion usage description required by macOS and enables local notifications.
 
 ## Build
 

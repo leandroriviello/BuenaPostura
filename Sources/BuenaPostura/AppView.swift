@@ -26,7 +26,15 @@ struct AppView: View {
             bottomBar
         }
         .frame(width: 388, height: 620)
-        .background(.regularMaterial)
+        .background {
+            ZStack {
+                Color.black
+                Rectangle().fill(.ultraThinMaterial)
+                Color.black.opacity(0.42)
+            }
+        }
+        .preferredColorScheme(.dark)
+        .tint(LeanStyle.signal)
         .animation(.smooth(duration: 0.22), value: monitor.state)
         .animation(.smooth(duration: 0.22), value: monitor.score)
         .animation(.smooth(duration: 0.22), value: monitor.showsAdvancedSettings)
@@ -34,27 +42,29 @@ struct AppView: View {
 
     private var titleBar: some View {
         HStack(spacing: 10) {
-            Image(systemName: "figure.seated.side")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(stateColor)
-                .frame(width: 28, height: 28)
-                .background(stateColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            Circle()
+                .fill(LeanStyle.signal)
+                .frame(width: 8, height: 8)
+                .shadow(color: LeanStyle.signal.opacity(0.7), radius: 5)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("BuenaPostura")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("buenapostura.app")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+            Text("BUENAPOSTURA")
+                .font(.system(size: 12, weight: .semibold))
+                .tracking(1.8)
 
             Spacer()
+
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text("LOCAL / \(context.date.formatted(date: .omitted, time: .standard))")
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .tracking(0.8)
+                    .foregroundStyle(LeanStyle.muted)
+            }
 
             statusPill
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.34))
     }
 
     private var postureHero: some View {
@@ -145,8 +155,7 @@ struct AppView: View {
     private var calibrationPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Calibracion")
-                    .font(.headline)
+                sectionLabel("02 / CALIBRACIÓN")
                 Spacer()
                 Text(calibrationProgress)
                     .font(.caption)
@@ -156,7 +165,7 @@ struct AppView: View {
             HStack(spacing: 10) {
                 calibrationStep(
                     title: "Postura buena",
-                    subtitle: "Sentate derecho",
+                    subtitle: "Siéntate derecho",
                     icon: "checkmark.circle.fill",
                     isDone: monitor.hasGoodPosture,
                     actionTitle: monitor.hasGoodPosture ? "Actualizar" : "Guardar"
@@ -166,7 +175,7 @@ struct AppView: View {
 
                 calibrationStep(
                     title: "Postura mala",
-                    subtitle: "Inclinate un poco",
+                    subtitle: "Inclínate un poco",
                     icon: "exclamationmark.triangle.fill",
                     isDone: monitor.hasBadPosture,
                     actionTitle: monitor.hasBadPosture ? "Actualizar" : "Guardar"
@@ -181,13 +190,12 @@ struct AppView: View {
     private var primarySettings: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Ajustes")
-                    .font(.headline)
+                sectionLabel("03 / AJUSTES")
                 Spacer()
                 Button {
                     monitor.showsAdvancedSettings.toggle()
                 } label: {
-                    Label(monitor.showsAdvancedSettings ? "Menos" : "Mas", systemImage: monitor.showsAdvancedSettings ? "chevron.up" : "slider.horizontal.3")
+                    Label(monitor.showsAdvancedSettings ? "Menos" : "Más", systemImage: monitor.showsAdvancedSettings ? "chevron.up" : "slider.horizontal.3")
                         .labelStyle(.titleAndIcon)
                 }
                 .controlSize(.small)
@@ -202,7 +210,7 @@ struct AppView: View {
             )
 
             slider(
-                title: "Avisar despues",
+                title: "Avisar después",
                 value: $monitor.settings.alertAfterSeconds,
                 range: 5...120,
                 step: 5,
@@ -214,8 +222,7 @@ struct AppView: View {
 
     private var advancedSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Avanzado")
-                .font(.headline)
+            sectionLabel("04 / AVANZADO")
 
             slider(
                 title: "Cooldown",
@@ -225,7 +232,7 @@ struct AppView: View {
                 display: "\(Int(monitor.settings.cooldownSeconds / 60))m"
             )
             slider(
-                title: "Tolerancia al mirar abajo",
+                title: "Tolerancia al mirar hacia abajo",
                 value: $monitor.settings.lookingDownToleranceDegrees,
                 range: 0...45,
                 step: 1,
@@ -251,7 +258,8 @@ struct AppView: View {
             }
             .keyboardShortcut(.space, modifiers: [])
             .buttonStyle(.borderedProminent)
-            .tint(monitor.isRunning ? .secondary : .accentColor)
+            .tint(monitor.isRunning ? LeanStyle.line : LeanStyle.signal)
+            .foregroundStyle(monitor.isRunning ? Color.white : Color.black)
             .help("Espacio")
 
             Button {
@@ -273,7 +281,7 @@ struct AppView: View {
         .controlSize(.regular)
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .background(Color.black.opacity(0.34))
     }
 
     private var statusPill: some View {
@@ -310,6 +318,7 @@ struct AppView: View {
             Button(actionTitle, action: action)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(!monitor.hasCurrentSample)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
@@ -361,6 +370,13 @@ struct AppView: View {
         .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .tracking(1.1)
+            .foregroundStyle(LeanStyle.muted)
+    }
+
     private func degrees(_ radians: Double) -> String {
         String(format: "%.1f°", radians * 180 / .pi)
     }
@@ -368,7 +384,7 @@ struct AppView: View {
     private var heroTitle: String {
         switch monitor.state {
         case .good: "Vas bien"
-        case .drifting: "Corregi suave"
+        case .drifting: "Corrige suavemente"
         case .slouching: "Momento de enderezarte"
         case .paused: "Pausado"
         case .monitoring: "Listo para calibrar"
@@ -381,13 +397,13 @@ struct AppView: View {
     private var heroMessage: String {
         switch monitor.state {
         case .good:
-            "Tu cabeza esta cerca de la postura buena calibrada."
+            "Tu cabeza está cerca de la postura buena calibrada."
         case .drifting:
-            "La lectura se esta alejando. Ajusta antes de que moleste."
+            "La lectura se está alejando. Ajusta tu postura antes de que moleste."
         case .slouching:
-            "Subi el pecho, relaja hombros y mira al frente."
+            "Sube el pecho, relaja los hombros y mira al frente."
         case .paused:
-            "No se enviaran avisos mientras dure la pausa."
+            "No se enviarán avisos mientras dure la pausa."
         case .monitoring:
             "Guarda una postura buena y una mala para activar el score."
         case .waitingForHeadphones:
@@ -395,7 +411,7 @@ struct AppView: View {
         case .unsupported:
             "Este equipo o audio no entrega motion data compatible."
         case .unauthorized:
-            "Habilita movimiento para BuenaPostura en Configuracion."
+            "Habilita Movimiento para BuenaPostura en Configuración del Sistema."
         }
     }
 
@@ -446,12 +462,8 @@ struct AppView: View {
         return .blue
     }
 
-    private var scoreGradient: LinearGradient {
-        LinearGradient(
-            colors: [.green, .yellow, .orange, .red],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
+    private var scoreGradient: Color {
+        LeanStyle.signal
     }
 
     private var stateIcon: String {
@@ -469,26 +481,33 @@ struct AppView: View {
 
     private var stateColor: Color {
         switch monitor.state {
-        case .good: .green
-        case .drifting: .orange
-        case .slouching: .red
-        case .unsupported: .red
-        case .unauthorized: .red
-        case .paused: .secondary
-        case .monitoring: .blue
-        case .waitingForHeadphones: .secondary
+        case .good: LeanStyle.signal
+        case .drifting: .white
+        case .slouching: .white
+        case .unsupported: LeanStyle.muted
+        case .unauthorized: LeanStyle.muted
+        case .paused: LeanStyle.muted
+        case .monitoring: LeanStyle.signal
+        case .waitingForHeadphones: LeanStyle.muted
         }
     }
+}
+
+private enum LeanStyle {
+    static let signal = Color(red: 53 / 255, green: 209 / 255, blue: 90 / 255)
+    static let muted = Color(white: 176 / 255)
+    static let line = Color(white: 36 / 255)
 }
 
 private extension View {
     func panelStyle() -> some View {
         self
             .padding(12)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.28), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(LeanStyle.line, lineWidth: 0.75)
             }
     }
 }
