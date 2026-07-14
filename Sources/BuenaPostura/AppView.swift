@@ -10,7 +10,7 @@ struct AppView: View {
             titleBar
             Divider()
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     postureHero
                     calibrationPanel
                     primarySettings
@@ -20,12 +20,12 @@ struct AppView: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
-                .padding(16)
+                .padding(14)
             }
             Divider()
             bottomBar
         }
-        .frame(width: 388, height: 620)
+        .frame(width: 372, height: monitor.showsAdvancedSettings ? 610 : 468)
         .background {
             ZStack {
                 Color.black
@@ -53,13 +53,6 @@ struct AppView: View {
 
             Spacer()
 
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text("LOCAL / \(context.date.formatted(date: .omitted, time: .standard))")
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .tracking(0.8)
-                    .foregroundStyle(LeanStyle.muted)
-            }
-
             statusPill
         }
         .padding(.horizontal, 14)
@@ -68,7 +61,7 @@ struct AppView: View {
     }
 
     private var postureHero: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 16) {
                 scoreRing
 
@@ -82,17 +75,17 @@ struct AppView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    HStack(spacing: 6) {
-                        capabilityBadge(title: connectionTitle, icon: connectionIcon, tint: connectionTint)
-                        capabilityBadge(title: permissionTitle, icon: permissionIcon, tint: permissionTint)
-                    }
+                    Label(connectionSummary, systemImage: connectionIcon)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(connectionTint)
                 }
 
                 Spacer(minLength: 0)
             }
 
-            scoreMeter
-            angleReadout
+            if monitor.hasGoodPosture, monitor.hasBadPosture {
+                scoreMeter
+            }
         }
         .panelStyle()
     }
@@ -117,7 +110,7 @@ struct AppView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(width: 88, height: 88)
+        .frame(width: 76, height: 76)
         .accessibilityLabel("Riesgo postural \(Int(monitor.score * 100)) por ciento")
     }
 
@@ -153,52 +146,67 @@ struct AppView: View {
     }
 
     private var calibrationPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                sectionLabel("02 / CALIBRACIÓN")
+                Text("Calibración")
+                    .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Text(calibrationProgress)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
-                calibrationStep(
-                    title: "Postura buena",
-                    subtitle: "Siéntate derecho",
-                    icon: "checkmark.circle.fill",
-                    isDone: monitor.hasGoodPosture,
-                    actionTitle: monitor.hasGoodPosture ? "Actualizar" : "Guardar"
-                ) {
-                    monitor.captureGoodPosture()
-                }
+            calibrationStep(
+                title: "Postura buena",
+                subtitle: "Sentate derecho y guardá",
+                icon: "checkmark.circle.fill",
+                isDone: monitor.hasGoodPosture,
+                actionTitle: monitor.hasGoodPosture ? "Repetir" : "Guardar"
+            ) {
+                monitor.captureGoodPosture()
+            }
 
-                calibrationStep(
-                    title: "Postura mala",
-                    subtitle: "Inclínate un poco",
-                    icon: "exclamationmark.triangle.fill",
-                    isDone: monitor.hasBadPosture,
-                    actionTitle: monitor.hasBadPosture ? "Actualizar" : "Guardar"
-                ) {
-                    monitor.captureBadPosture()
-                }
+            calibrationStep(
+                title: "Postura mala",
+                subtitle: "Inclinate un poco y guardá",
+                icon: "exclamationmark.triangle.fill",
+                isDone: monitor.hasBadPosture,
+                actionTitle: monitor.hasBadPosture ? "Repetir" : "Guardar"
+            ) {
+                monitor.captureBadPosture()
             }
         }
         .panelStyle()
     }
 
     private var primarySettings: some View {
+        Button {
+            monitor.showsAdvancedSettings.toggle()
+        } label: {
+            HStack {
+                Label("Ajustes", systemImage: "slider.horizontal.3")
+                Spacer()
+                Text("\(Int(monitor.settings.sensitivity * 100))% · \(Int(monitor.settings.alertAfterSeconds))s")
+                    .foregroundStyle(.secondary)
+                Image(systemName: monitor.showsAdvancedSettings ? "chevron.up" : "chevron.down")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .panelStyle(padding: 0)
+    }
+
+    private var advancedSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                sectionLabel("03 / AJUSTES")
+                Text("Detalles")
+                    .font(.system(size: 14, weight: .semibold))
                 Spacer()
-                Button {
-                    monitor.showsAdvancedSettings.toggle()
-                } label: {
-                    Label(monitor.showsAdvancedSettings ? "Menos" : "Más", systemImage: monitor.showsAdvancedSettings ? "chevron.up" : "slider.horizontal.3")
-                        .labelStyle(.titleAndIcon)
-                }
-                .controlSize(.small)
+                angleReadout
+                    .frame(width: 164)
             }
 
             slider(
@@ -208,7 +216,6 @@ struct AppView: View {
                 step: 0.01,
                 display: "\(Int(monitor.settings.sensitivity * 100))%"
             )
-
             slider(
                 title: "Avisar después",
                 value: $monitor.settings.alertAfterSeconds,
@@ -216,13 +223,6 @@ struct AppView: View {
                 step: 5,
                 display: "\(Int(monitor.settings.alertAfterSeconds))s"
             )
-        }
-        .panelStyle()
-    }
-
-    private var advancedSettings: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionLabel("04 / AVANZADO")
 
             slider(
                 title: "Cooldown",
@@ -302,26 +302,29 @@ struct AppView: View {
         actionTitle: String,
         action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(spacing: 7) {
-                Image(systemName: icon)
-                    .foregroundStyle(isDone ? .green : .secondary)
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(isDone ? LeanStyle.signal : .secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            Spacer()
 
             Button(actionTitle, action: action)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!monitor.hasCurrentSample)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
@@ -344,15 +347,6 @@ struct AppView: View {
 
             Slider(value: value, in: range, step: step)
         }
-    }
-
-    private func capabilityBadge(title: String, icon: String, tint: Color) -> some View {
-        Label(title, systemImage: icon)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
-            .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
     private func metricChip(title: String, value: String) -> some View {
@@ -387,7 +381,7 @@ struct AppView: View {
         case .drifting: "Corrige suavemente"
         case .slouching: "Momento de enderezarte"
         case .paused: "Pausado"
-        case .monitoring: "Listo para calibrar"
+        case .monitoring: monitor.hasGoodPosture && monitor.hasBadPosture ? "Todo listo" : "Calibrá una vez"
         case .waitingForHeadphones: "Conecta tus AirPods"
         case .unsupported: "No compatible"
         case .unauthorized: "Falta permiso"
@@ -405,7 +399,9 @@ struct AppView: View {
         case .paused:
             "No se enviarán avisos mientras dure la pausa."
         case .monitoring:
-            "Guarda una postura buena y una mala para activar el score."
+            monitor.hasGoodPosture && monitor.hasBadPosture
+                ? "BuenaPostura ya está observando."
+                : "Guardá una postura buena y una mala."
         case .waitingForHeadphones:
             "Usa AirPods compatibles con head tracking."
         case .unsupported:
@@ -431,6 +427,10 @@ struct AppView: View {
 
     private var connectionTitle: String {
         monitor.isConnected || monitor.canMonitor ? "AirPods" : "Sin AirPods"
+    }
+
+    private var connectionSummary: String {
+        "\(connectionTitle) · \(permissionTitle)"
     }
 
     private var connectionIcon: String {
@@ -500,9 +500,9 @@ private enum LeanStyle {
 }
 
 private extension View {
-    func panelStyle() -> some View {
+    func panelStyle(padding: CGFloat = 12) -> some View {
         self
-            .padding(12)
+            .padding(padding)
             .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
